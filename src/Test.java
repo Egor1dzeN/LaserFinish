@@ -70,7 +70,7 @@ public class Test extends JFrame {
         jPanel.add(Reset, BorderLayout.NORTH);
         jPanel.add(table_result);
         jScrollPane = new JScrollPane(table_result, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        jScrollPane.setPreferredSize(new Dimension(590,280));
+        jScrollPane.setPreferredSize(new Dimension(590, 280));
         jPanel.add(jScrollPane);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setLayout(new BorderLayout());
@@ -137,8 +137,10 @@ public class Test extends JFrame {
                                         }
                                         str = arr[0] + ":" + arr[1];
                                         result.setText(str);
+                                        String name = (String) sportsmensBox.getSelectedItem();
+                                        System.out.println(name);
                                         if (saveResult.isSelected())
-                                            add_row_table(1, str, "egor", 100, "Moscow");
+                                            add_row_table(1, str, name, 100, "Moscow");
                                     }
                                 }
                             } catch (UnsupportedEncodingException e) {
@@ -202,12 +204,12 @@ public class Test extends JFrame {
                 "name varchar(30)," +
                 "surname varchar(30))");
         stm.executeUpdate("create table if not exists result_table(" +
-                    "id int primary key auto_increment," +
-                    "result varchar(10) default '0:00'," +
-                    "sportsmen_id int," +
-                    "distance_meter int default 0," +
-                    "location varchar(30) default 'No location'," +
-                    "time_result timestamp," +
+                "id int primary key auto_increment," +
+                "result varchar(10) default '0:00'," +
+                "sportsmen_id int," +
+                "distance_meter int default 0," +
+                "location varchar(30) default 'No location'," +
+                "time_result timestamp," +
                 "foreign key(sportsmen_id) references sportsmens(id))");
         ResultSet results = stm.executeQuery("select * from result_table");
         while (results.next()) {
@@ -235,11 +237,16 @@ public class Test extends JFrame {
     }
 
     public void add_row_table(int id, String result1, String name, int distance, String location) throws SQLException {
-        stm.executeUpdate("insert into result_table (result, sportsmen_id,time_result) values ('" + result1 + "',1, now())");
+        System.out.println(name);
+        ResultSet rs1 = stm.executeQuery("select id   from sportsmens " +
+                "where concat(name,' ',surname) = '" + name + "'");
+        rs1.next();
+        int id_sportsmen = rs1.getInt(1);
+        stm.executeUpdate("insert into result_table (result, sportsmen_id,time_result) values ('" + result1 + "'," + id_sportsmen + ", now())");
         ResultSet rs = stm.executeQuery("select id from result_table order by id desc limit 1");
         int i = 0;
-        if(rs.next())
-            i = rs.getInt(1)+1;
+        if (rs.next())
+            i = rs.getInt(1) + 1;
         Vector<String> v = new Vector<>();
         v.add(String.valueOf(i));
         v.add(result1);
@@ -251,6 +258,7 @@ public class Test extends JFrame {
         tableModel.addRow(v);
         tableModel.fireTableDataChanged();
     }
+
     public String[] init_sportsmensBox() throws SQLException {
         ResultSet rs = stm.executeQuery("select count(*) from sportsmens");
         rs.next();
@@ -259,10 +267,10 @@ public class Test extends JFrame {
         String[] arr_sportsmens = new String[size];
         rs = stm.executeQuery("select * from sportsmens");
         int i = 0;
-        while(rs.next()){
-            String str = rs.getString(2)+" "+rs.getString(3);
+        while (rs.next()) {
+            String str = rs.getString(2) + " " + rs.getString(3);
             arr_sportsmens[i] = str;
-                    i++;
+            i++;
         }
         sportsmensBox.setModel(new DefaultComboBoxModel(arr_sportsmens));
         return arr_sportsmens;
