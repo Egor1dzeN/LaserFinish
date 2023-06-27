@@ -7,14 +7,18 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.io.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.*;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Vector;
 
-public class Test extends JFrame{
+public class Test extends JFrame {
 
     private JButton Reset = new JButton("Reset Settings");
     private JLabel ResultL;
@@ -26,6 +30,8 @@ public class Test extends JFrame{
     private JButton Update;
     private JLabel isConnectionL;
     private JTable table_result;
+    private JCheckBox saveResult;
+    private JComboBox sportsmensBox;
     private DefaultTableModel tableModel = new DefaultTableModel();
     SerialPort serialPort;
     boolean isConnection;
@@ -33,21 +39,24 @@ public class Test extends JFrame{
     private final String url = "jdbc:mysql://localhost:3306";
     private final String user = "root";
     private final String password = "Partner25";
-    private final Connection con = DriverManager.getConnection(url,user,password);
+    private final Connection con = DriverManager.getConnection(url, user, password);
     private final Statement stm = con.createStatement();
     Vector<Vector<String>> list_result = new Vector<>();
     Vector<String> headers = new Vector<>();
+    JScrollPane jScrollPane;
+    private boolean is_saving = true;
 
     public Test() throws IOException, SQLException {
         super("My First Window");
         setVisible(true);
-        setSize(1000, 300);
+        setSize(1000, 450);
         JPanel jPanel = new JPanel(new FlowLayout());
         init_headers();
-
         table_result = new JTable(tableModel);
         table_result.setDefaultEditor(Object.class, null);
-        //table_result.setColumnModel();
+        table_result.getColumnModel().getColumn(5).setMinWidth(190);
+        table_result.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        saveResult.setSelected(true);
         jPanel.add(comboBox1);
         jPanel.add(isConnectionL);
         jPanel.add(Test_con);
@@ -56,12 +65,14 @@ public class Test extends JFrame{
         jPanel.add(status);
         jPanel.add(ResultL);
         jPanel.add(result);
+        jPanel.add(saveResult);
+        jPanel.add(sportsmensBox);
         jPanel.add(Reset, BorderLayout.NORTH);
-        //jPanel.add(table_result.getTableHeader());
         jPanel.add(table_result);
-
+        jScrollPane = new JScrollPane(table_result, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        jScrollPane.setPreferredSize(new Dimension(590,280));
+        jPanel.add(jScrollPane);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        //Panel.setLayout(new BoxLayout(jPanel, BoxLayout.X_AXIS));
         this.setLayout(new BorderLayout());
         add(jPanel, BorderLayout.CENTER);
         Reset.addActionListener(new ActionListener() {
@@ -76,6 +87,12 @@ public class Test extends JFrame{
                 }
             }
         });
+        saveResult.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+
+            }
+        });
         Test_con.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -83,7 +100,7 @@ public class Test extends JFrame{
                 int i = comboBox1.getSelectedIndex();
                 serialPort = ports[i];
                 serialPort.openPort();
-                if(serialPort.isOpen()){
+                if (serialPort.isOpen()) {
                     isConnectionL.setText("Connect");
                     isConnectionL.setForeground(Color.GREEN);
                     isConnection = true;
@@ -98,11 +115,11 @@ public class Test extends JFrame{
                         public void serialEvent(SerialPortEvent serialPortEvent) {
                             int size = serialPortEvent.getSerialPort().bytesAvailable();
                             byte[] buffer = new byte[size];
-                            serialPortEvent.getSerialPort().readBytes(buffer,size);
+                            serialPortEvent.getSerialPort().readBytes(buffer, size);
                             try {
-                                String str = new String(buffer,"UTF-8");
-                                if(str.length()>2) {
-                                    System.out.println(str.substring(0,str.length()));
+                                String str = new String(buffer, "UTF-8");
+                                if (str.length() > 2) {
+                                    System.out.println(str.substring(0, str.length()));
                                     if (str.equals("Ready")) {
                                         status.setText("Ready");
                                         result.setText("Ready");
@@ -112,11 +129,16 @@ public class Test extends JFrame{
                                     } else if (str.equals("Finish")) {
                                         status.setText("Finished");
                                         result.setText("Wait result");
-                                    } else {
+                                    } else if (str.contains(":")) {
                                         status.setText("Have result");
+                                        String[] arr = str.split(":");
+                                        if (arr[1].length() < 2) {
+                                            arr[1] = "0" + arr[1];
+                                        }
+                                        str = arr[0] + ":" + arr[1];
                                         result.setText(str);
-                                        add_row_table(1, str, "egor", 100, "Moscow");
-
+                                        if (saveResult.isSelected())
+                                            add_row_table(1, str, "egor", 100, "Moscow");
                                     }
                                 }
                             } catch (UnsupportedEncodingException e) {
@@ -126,7 +148,7 @@ public class Test extends JFrame{
                             }
                         }
                     });
-                }else{
+                } else {
                     isConnectionL.setText("No Connect");
                     isConnectionL.setForeground(Color.RED);
                     isConnection = false;
@@ -134,7 +156,10 @@ public class Test extends JFrame{
                 }
             }
         });
+
         SQL_start();
+        init_sportsmensBox();
+
 
         Update.addActionListener(new ActionListener() {
             @Override
@@ -148,7 +173,6 @@ public class Test extends JFrame{
             }
         });
 
-
     }
 
 
@@ -156,64 +180,91 @@ public class Test extends JFrame{
         Test test = new Test();
         System.out.println("test tetete");
     }
+
     public String[] ShowAllPorts() throws UnsupportedEncodingException {
         int i = 0;
         ports = SerialPort.getCommPorts();
         String[] arr = new String[ports.length];
-        for(SerialPort port :ports){
-            String s = (i+1)+". "+port.getDescriptivePortName()+" ";
+        for (SerialPort port : ports) {
+            String s = (i + 1) + ". " + port.getDescriptivePortName() + " ";
             System.out.println(s);
-            arr[i] = new String(s.getBytes(),"UTF-8");
+            arr[i] = new String(s.getBytes(), "UTF-8");
             i++;
         }
         return arr;
     }
+
     public void SQL_start() throws SQLException {
         stm.executeUpdate("create database if not exists result_db");
         stm.executeUpdate("use result_db");
-        //stm.executeUpdate("create table result_table(" +
-        //        "id int primary key )");
-        ResultSet rs = stm.executeQuery("select count(*) from information_schema.TABLES\n" +
-                "where TABLE_SCHEMA = 'result_db' and TABLE_NAME = 'result_table'");
-        rs.next();
-        int i = rs.getInt(1);
-        if(i == 0)
-            stm.executeUpdate("create table result_table(" +
+        stm.executeUpdate("create table if not exists sportsmens(" +
+                "id int primary key auto_increment," +
+                "name varchar(30)," +
+                "surname varchar(30))");
+        stm.executeUpdate("create table if not exists result_table(" +
                     "id int primary key auto_increment," +
                     "result varchar(10) default '0:00'," +
-                    "name_sportsmen varchar(30) default 'noname'," +
+                    "sportsmen_id int," +
                     "distance_meter int default 0," +
-                    "location varchar(30))");
+                    "location varchar(30) default 'No location'," +
+                    "time_result timestamp," +
+                "foreign key(sportsmen_id) references sportsmens(id))");
         ResultSet results = stm.executeQuery("select * from result_table");
-        while (results.next()){
-            Vector<String>v = new Vector<>();
+        while (results.next()) {
+            Vector<String> v = new Vector<>();
             v.add(results.getString(1));
             v.add(results.getString(2));
             v.add(results.getString(3));
             v.add(results.getString(4));
             v.add(results.getString(5));
+            v.add(results.getString(6));
             list_result.add(v);
             tableModel.addRow(v);
         }
         tableModel.fireTableDataChanged();
     }
-    public void init_headers(){
+
+    public void init_headers() {
         headers.add("id");
         headers.add("Result");
         headers.add("Name of sportsmen");
         headers.add("Distance (meter)");
         headers.add("Location");
+        headers.add("Time_result");
         tableModel.setColumnIdentifiers(headers);
     }
+
     public void add_row_table(int id, String result1, String name, int distance, String location) throws SQLException {
-        stm.executeUpdate("insert into result_table (result) values ('"+result1+"')");
+        stm.executeUpdate("insert into result_table (result, sportsmen_id,time_result) values ('" + result1 + "',1, now())");
+        ResultSet rs = stm.executeQuery("select id from result_table order by id desc limit 1");
+        int i = 0;
+        if(rs.next())
+            i = rs.getInt(1)+1;
         Vector<String> v = new Vector<>();
-        v.add(String.valueOf(10));
+        v.add(String.valueOf(i));
         v.add(result1);
         v.add(name);
         v.add(String.valueOf(distance));
         v.add(location);
-        tableModel.addRow(v);;
+        String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime());
+        v.add(timeStamp);
+        tableModel.addRow(v);
         tableModel.fireTableDataChanged();
+    }
+    public String[] init_sportsmensBox() throws SQLException {
+        ResultSet rs = stm.executeQuery("select count(*) from sportsmens");
+        rs.next();
+        int size = rs.getInt(1);
+        System.out.println(size);
+        String[] arr_sportsmens = new String[size];
+        rs = stm.executeQuery("select * from sportsmens");
+        int i = 0;
+        while(rs.next()){
+            String str = rs.getString(2)+" "+rs.getString(3);
+            arr_sportsmens[i] = str;
+                    i++;
+        }
+        sportsmensBox.setModel(new DefaultComboBoxModel(arr_sportsmens));
+        return arr_sportsmens;
     }
 }
