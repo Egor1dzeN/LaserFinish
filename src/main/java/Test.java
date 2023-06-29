@@ -272,7 +272,7 @@ public class Test extends JFrame {
         ResultSet rs = stm.executeQuery("select count(*) from sportsmens");
         rs.next();
         int size = rs.getInt(1);
-        System.out.println("Количество спортсменов в бд - "+size+" человек");
+        System.out.println("Количество спортсменов в бд - "+size+" "+Declansion.declantion_of_word(size));
         String[] arr_sportsmens = new String[size];
         rs = stm.executeQuery("select * from sportsmens");
         int i = 0;
